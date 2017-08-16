@@ -1,9 +1,12 @@
-{-# LANGUAGE ForeignFunctionInterface, GeneralizedNewtypeDeriving, 
+{-# LANGUAGE ForeignFunctionInterface, GeneralizedNewtypeDeriving,
              EmptyDataDecls #-}
 
 #include "svm.h"
 #include <stddef.h>
+
+#if __GLASGOW_HASKELL__ < 800
 #let alignment t = "%lu", (unsigned long)offsetof(struct {char x__; t (y__); }, y__)
+#endif
 
 module Data.SVM.Raw where
 
@@ -11,14 +14,14 @@ module Data.SVM.Raw where
 -- TODO verificare l'import
 
 import Foreign.Storable (Storable(..), peekByteOff, pokeByteOff)
-import Foreign.C.Types (CDouble, CInt)
+import Foreign.C.Types (CDouble (..), CInt (..) )
 import Foreign.C.String (CString)
 import Foreign.Ptr(nullPtr, Ptr)
 import Foreign.ForeignPtr (FinalizerPtr)
 
-data CSvmNode = CSvmNode { 
+data CSvmNode = CSvmNode {
     index:: CInt,
-    value:: CDouble 
+    value:: CDouble
 }
 
 instance Storable CSvmNode where
@@ -34,7 +37,7 @@ data CSvmProblem = CSvmProblem {
     l:: CInt,
     y:: Ptr CDouble,
     x:: Ptr (Ptr CSvmNode)
-}       
+}
 
 instance Storable CSvmProblem where
     sizeOf _ = #size struct svm_problem
@@ -53,7 +56,7 @@ newtype CSvmType = CSvmType {unCSvmType :: CInt}
                    deriving (Storable, Show)
 #enum CSvmType, CSvmType, C_SVC, NU_SVC, ONE_CLASS, EPSILON_SVR, NU_SVR
 
-newtype CKernelType = CKernelType {unCKernelType :: CInt} 
+newtype CKernelType = CKernelType {unCKernelType :: CInt}
                       deriving (Storable, Show)
 #enum CKernelType, CKernelType, LINEAR, POLY, RBF, SIGMOID, PRECOMPUTED
 
@@ -75,7 +78,7 @@ data CSvmParameter = CSvmParameter {
     probability  :: CInt
 } deriving Show
 
-defaultCParam = CSvmParameter cSvc rbf 3 0 0 100 1e-3 1 
+defaultCParam = CSvmParameter cSvc rbf 3 0 0 100 1e-3 1
                               0 nullPtr nullPtr 0.5 0.1 1 0
 
 instance Storable CSvmParameter where
@@ -96,7 +99,7 @@ instance Storable CSvmParameter where
                   p            <- (#peek struct svm_parameter, p) ptr
                   shrinking    <- (#peek struct svm_parameter, degree) ptr
                   probability  <- (#peek struct svm_parameter, probability) ptr
-                  return $ CSvmParameter svm_type kernel_type degree      
+                  return $ CSvmParameter svm_type kernel_type degree
                                 gamma coef0 cache_size eps c nr_weight
                                 weight_label weight nu p shrinking probability
     poke ptr (CSvmParameter svm_type kernel_type degree
@@ -120,17 +123,17 @@ instance Storable CSvmParameter where
 
 data CSvmModel
 
--- TODO cambiare il return type da 
+-- TODO cambiare il return type da
 foreign import ccall unsafe "svm.h svm_train" c_svm_train :: Ptr CSvmProblem -> Ptr CSvmParameter -> IO (Ptr CSvmModel)
-                        
-foreign import ccall unsafe "svm.h svm_cross_validation" c_svm_cross_validation:: Ptr CSvmProblem -> Ptr CSvmParameter -> CInt -> Ptr CDouble -> IO () 
+
+foreign import ccall unsafe "svm.h svm_cross_validation" c_svm_cross_validation:: Ptr CSvmProblem -> Ptr CSvmParameter -> CInt -> Ptr CDouble -> IO ()
 
 foreign import ccall unsafe "svm.h svm_predict" c_svm_predict :: Ptr CSvmModel -> Ptr CSvmNode -> CDouble
 
 foreign import ccall unsafe "svm.h svm_save_model" c_svm_save_model :: CString -> Ptr CSvmModel -> IO CInt
 
 foreign import ccall unsafe "svm.h svm_load_model" c_svm_load_model :: CString -> IO (Ptr CSvmModel)
-                        
+
 foreign import ccall unsafe "svm.h svm_check_parameter" c_svm_check_parameter :: Ptr CSvmProblem -> Ptr CSvmParameter -> CString
 
 foreign import ccall unsafe "svm.h &svm_destroy_model" c_svm_destroy_model :: FinalizerPtr CSvmModel
