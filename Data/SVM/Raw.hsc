@@ -1,3 +1,6 @@
+{-|This is a module with raw bindings to libsvm
+-}
+
 {-# LANGUAGE ForeignFunctionInterface, GeneralizedNewtypeDeriving, 
              EmptyDataDecls #-}
 
@@ -9,9 +12,6 @@
 #endif
 
 module Data.SVM.Raw where
-
--- TODO limitare l'export
--- TODO verificare l'import
 
 import Foreign.Storable (Storable(..), peekByteOff, pokeByteOff)
 import Foreign.C.Types (CDouble (..), CInt (..))
@@ -51,7 +51,6 @@ instance Storable CSvmProblem where
                                          (#poke struct svm_problem, x) ptr xp
 
 
--- TODO esportare solo il tipo e non il costruttore?
 newtype CSvmType = CSvmType {unCSvmType :: CInt}
                    deriving (Storable, Show)
 #enum CSvmType, CSvmType, C_SVC, NU_SVC, ONE_CLASS, EPSILON_SVR, NU_SVR
@@ -122,9 +121,9 @@ instance Storable CSvmParameter where
               (#poke struct svm_parameter, shrinking) ptr shrinking_p
               (#poke struct svm_parameter, probability) ptr probability_p
 
+-- |Managed type for struct svm_model.
 data CSvmModel
 
--- TODO cambiare il return type da 
 foreign import ccall unsafe "svm.h svm_train" c_svm_train :: Ptr CSvmProblem -> Ptr CSvmParameter -> IO (Ptr CSvmModel)
                         
 foreign import ccall unsafe "svm.h svm_cross_validation" c_svm_cross_validation:: Ptr CSvmProblem -> Ptr CSvmParameter -> CInt -> Ptr CDouble -> IO () 
