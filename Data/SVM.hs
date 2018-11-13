@@ -15,6 +15,8 @@ module Data.SVM
   , loadModel
   , saveModel
   , predict
+  , withPrintFn
+  , CSvmPrintFn
   ) where
 
 import           Control.Exception
@@ -22,19 +24,21 @@ import           Control.Monad         (liftM, when)
 import           Data.IntMap           (IntMap, toList)
 import qualified Data.IntMap           as M
 import           Data.SVM.Raw          (CSvmModel, CSvmNode (..), CSvmParameter,
-                                        CSvmProblem (..),
+                                        CSvmPrintFn, CSvmProblem (..),
                                         c_clone_model_support_vectors,
                                         c_svm_check_parameter,
                                         c_svm_cross_validation,
                                         c_svm_destroy_model, c_svm_load_model,
                                         c_svm_predict, c_svm_save_model,
-                                        c_svm_train, defaultCParam)
+                                        c_svm_set_print_string_function,
+                                        c_svm_train, createSvmPrintFnPtr,
+                                        defaultCParam)
 import qualified Data.SVM.Raw          as R
 import           Foreign.C.String
 import           Foreign.ForeignPtr
 import           Foreign.Marshal.Alloc (alloca, free, malloc)
 import           Foreign.Marshal.Array
-import           Foreign.Ptr           (Ptr, nullPtr)
+import           Foreign.Ptr           (Ptr, freeHaskellFunPtr, nullPtr)
 import           Foreign.Storable      (peek, poke)
 
 -- |Vector type provides a sparse implementation of vector. It uses IntMap as underlying implementation.
@@ -215,3 +219,19 @@ predict (Model modelForeignPtr) vector = action
           action = withForeignPtr modelForeignPtr $ \modelPtr ->
                    withCSvmNodeArray vector $ \vectorPtr ->
                         return . realToFrac . c_svm_predict modelPtr $ vectorPtr
+
+-- |Wrapper to change the libsvm output reporting function.
+--
+-- libsvm by default writes some statistics to stdout. If you don't
+-- want any output from libsvm, you can do e.g.:
+--
+-- >>> withPrintFn (\_ -> return ()) $ train (NuSvc 0.25) (RBF 1) feats
+withPrintFn :: CSvmPrintFn -> IO a -> IO a
+withPrintFn printfn body = bracket
+  (do
+    c_printfn <- createSvmPrintFnPtr printfn
+    c_svm_set_print_string_function c_printfn
+    return c_printfn
+  )
+  freeHaskellFunPtr
+  (const body)
