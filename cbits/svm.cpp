@@ -2598,7 +2598,7 @@ double svm_predict_values(const svm_model *model, const svm_node *x, double* dec
 
 double svm_predict(const svm_model *model, const svm_node *x)
 {
-	print_node(x);
+	// print_node(x);
 	int nr_class = model->nr_class;
 	double *dec_values;
 	if(model->param.svm_type == ONE_CLASS ||

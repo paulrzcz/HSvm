@@ -16,7 +16,7 @@ module Data.SVM.Raw where
 import Foreign.Storable (Storable(..), peekByteOff, pokeByteOff)
 import Foreign.C.Types (CDouble (..), CInt (..))
 import Foreign.C.String (CString)
-import Foreign.Ptr(nullPtr, Ptr)
+import Foreign.Ptr(nullPtr, Ptr, FunPtr)
 import Foreign.ForeignPtr (FinalizerPtr)
 
 data CSvmNode = CSvmNode { 
@@ -139,3 +139,8 @@ foreign import ccall unsafe "svm.h svm_check_parameter" c_svm_check_parameter ::
 foreign import ccall unsafe "svm.h &svm_destroy_model" c_svm_destroy_model :: FinalizerPtr CSvmModel
 
 foreign import ccall unsafe "svm.h clone_model_support_vectors" c_clone_model_support_vectors :: Ptr CSvmModel -> IO CInt
+
+type CSvmPrintFn = CString -> IO ()
+
+foreign import ccall unsafe "svm.h svm_set_print_string_function" c_svm_set_print_string_function :: FunPtr CSvmPrintFn -> IO ()
+foreign import ccall unsafe "wrapper" createSvmPrintFnPtr :: CSvmPrintFn -> IO (FunPtr CSvmPrintFn)
