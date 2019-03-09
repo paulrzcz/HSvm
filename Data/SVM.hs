@@ -218,7 +218,7 @@ predict (Model modelForeignPtr) vector = action
     where action :: IO Double
           action = withForeignPtr modelForeignPtr $ \modelPtr ->
                    withCSvmNodeArray vector $ \vectorPtr ->
-                        return . realToFrac . c_svm_predict modelPtr $ vectorPtr
+                        realToFrac <$> c_svm_predict modelPtr vectorPtr
 
 -- |Wrapper to change the libsvm output reporting function.
 --
