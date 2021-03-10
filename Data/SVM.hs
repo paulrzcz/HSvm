@@ -1,3 +1,6 @@
+{-|
+This module provides a safe bindings to libsvm functions and structures with implicit memory handling.
+-}
 module Data.SVM
   ( Vector
   , Problem
@@ -12,51 +15,60 @@ module Data.SVM
   , loadModel
   , saveModel
   , predict
+  , withPrintFn
+  , CSvmPrintFn
   ) where
 
--- TODO limitare l'export
--- TODO verificare l'import
-
--- import           Control.Arrow         ((***))
 import           Control.Exception
 import           Control.Monad         (liftM, when)
 import           Data.IntMap           (IntMap, toList)
 import qualified Data.IntMap           as M
 import           Data.SVM.Raw          (CSvmModel, CSvmNode (..), CSvmParameter,
-                                        CSvmProblem (..),
+                                        CSvmPrintFn, CSvmProblem (..),
                                         c_clone_model_support_vectors,
                                         c_svm_check_parameter,
                                         c_svm_cross_validation,
                                         c_svm_destroy_model, c_svm_load_model,
                                         c_svm_predict, c_svm_save_model,
-                                        c_svm_train, defaultCParam)
+                                        c_svm_set_print_string_function,
+                                        c_svm_train, createSvmPrintFnPtr,
+                                        defaultCParam)
 import qualified Data.SVM.Raw          as R
 import           Foreign.C.String
 import           Foreign.ForeignPtr
 import           Foreign.Marshal.Alloc (alloca, free, malloc)
 import           Foreign.Marshal.Array
-import           Foreign.Ptr           (Ptr, nullPtr)
+import           Foreign.Ptr           (Ptr, freeHaskellFunPtr, nullPtr)
 import           Foreign.Storable      (peek, poke)
 
+-- |Vector type provides a sparse implementation of vector. It uses IntMap as underlying implementation.
 type Vector = IntMap Double
+
+-- |SVM problem is a list of maps from training vectors to 1.0 or -1.0
 type Problem = [(Double, Vector)]
+
+-- |'Model' is a wrapper over foreign pointer to 'CSvmModel'
 newtype Model = Model (ForeignPtr CSvmModel)
 
-data KernelType = Linear
-                | RBF     { gamma :: Double }
-                | Sigmoid { gamma :: Double, coef0 :: Double }
-                | Poly    { gamma :: Double, coef0 :: Double, degree :: Int}
+-- |Kernel function for SVM algorithm.
+data KernelType = Linear -- ^Linear kernel function, i.e. dot product
+                | RBF     { gamma :: Double } -- ^Gaussian radial basis function with parameter 'gamma'
+                | Sigmoid { gamma :: Double, coef0 :: Double } -- ^Sigmoid kernel function
+                | Poly    { gamma :: Double, coef0 :: Double, degree :: Int} -- ^Inhomogeneous polynomial function
 
-data Algorithm = CSvc  { c :: Double }
-               | NuSvc { nu :: Double }
-               | NuSvr { nu :: Double, c :: Double }
-               | EpsilonSvr { epsilon :: Double, c :: Double }
-               | OneClassSvm { nu :: Double }
+-- |SVM Algorithm with parameters
+data Algorithm = CSvc  { c :: Double } -- ^c-SVC algorithm
+               | NuSvc { nu :: Double } -- ^nu-SVC algorithm
+               | NuSvr { nu :: Double, c :: Double } -- ^nu-SVR algorithm
+               | EpsilonSvr { epsilon :: Double, c :: Double } -- ^eps-SVR algorithm
+               | OneClassSvm { nu :: Double } -- ^One class SVM
 
+-- |Extra parameters of SVM implementation
 data ExtraParam = ExtraParam {cacheSize   :: Double,
                               shrinking   :: Int,
                               probability :: Int}
 
+-- |Default extra parameters of SVM implamentation
 defaultExtra :: ExtraParam
 defaultExtra = ExtraParam {cacheSize = 1000, shrinking = 1, probability = 0}
 
@@ -146,6 +158,7 @@ checkParam probPtr paramPtr = do
 
 --
 
+-- |Like 'train' but with extra parameters
 train' :: ExtraParam -> Algorithm -> KernelType -> Problem -> IO Model
 train' extra algo kern prob =
     withProblem prob $ \probPtr ->
@@ -162,6 +175,7 @@ train' extra algo kern prob =
 train :: Algorithm -> KernelType -> Problem -> IO Model
 train = train' defaultExtra
 
+-- |Like 'crossvalidate' but with extra parameters
 crossValidate' :: ExtraParam
                   -> Algorithm
                   -> KernelType
@@ -178,11 +192,13 @@ crossValidate' extra algo kern prob nFold =
             c_svm_cross_validation probPtr paramPtr c_nFold targetPtr
             map realToFrac `liftM` peekArray probLen targetPtr
 
+-- |Stratified cross validation
 crossValidate :: Algorithm -> KernelType -> Problem -> Int -> IO [Double]
 crossValidate = crossValidate' defaultExtra
 
 -----------------------------------------------------------------------
 
+-- |Save model to the file
 saveModel :: Model -> FilePath -> IO ()
 saveModel (Model modelForeignPtr) path =
     withForeignPtr modelForeignPtr $ \modelPtr -> do
@@ -190,15 +206,32 @@ saveModel (Model modelForeignPtr) path =
         ret <- c_svm_save_model pathString modelPtr
         when (ret /= 0) $ error $ "svm: error saving the model:" ++ show ret
 
+-- |Load model from the file
 loadModel :: FilePath -> IO Model
 loadModel path = do
     modelPtr <- c_svm_load_model =<< newCString path
     Model `liftM` newForeignPtr c_svm_destroy_model modelPtr
 
----
+-- |Predict a value for 'Vector' by using 'Model'
 predict :: Model -> Vector -> IO Double
 predict (Model modelForeignPtr) vector = action
     where action :: IO Double
           action = withForeignPtr modelForeignPtr $ \modelPtr ->
                    withCSvmNodeArray vector $ \vectorPtr ->
-                        return . realToFrac . c_svm_predict modelPtr $ vectorPtr
+                        realToFrac <$> c_svm_predict modelPtr vectorPtr
+
+-- |Wrapper to change the libsvm output reporting function.
+--
+-- libsvm by default writes some statistics to stdout. If you don't
+-- want any output from libsvm, you can do e.g.:
+--
+-- >>> withPrintFn (\_ -> return ()) $ train (NuSvc 0.25) (RBF 1) feats
+withPrintFn :: CSvmPrintFn -> IO a -> IO a
+withPrintFn printfn body = bracket
+  (do
+    c_printfn <- createSvmPrintFnPtr printfn
+    c_svm_set_print_string_function c_printfn
+    return c_printfn
+  )
+  freeHaskellFunPtr
+  (const body)

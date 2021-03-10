@@ -1,3 +1,6 @@
+{-|This is a module with raw bindings to libsvm
+-}
+
 {-# LANGUAGE ForeignFunctionInterface, GeneralizedNewtypeDeriving, 
              EmptyDataDecls #-}
 
@@ -10,13 +13,10 @@
 
 module Data.SVM.Raw where
 
--- TODO limitare l'export
--- TODO verificare l'import
-
 import Foreign.Storable (Storable(..), peekByteOff, pokeByteOff)
 import Foreign.C.Types (CDouble (..), CInt (..))
 import Foreign.C.String (CString)
-import Foreign.Ptr(nullPtr, Ptr)
+import Foreign.Ptr(nullPtr, Ptr, FunPtr)
 import Foreign.ForeignPtr (FinalizerPtr)
 
 data CSvmNode = CSvmNode { 
@@ -51,7 +51,6 @@ instance Storable CSvmProblem where
                                          (#poke struct svm_problem, x) ptr xp
 
 
--- TODO esportare solo il tipo e non il costruttore?
 newtype CSvmType = CSvmType {unCSvmType :: CInt}
                    deriving (Storable, Show)
 #enum CSvmType, CSvmType, C_SVC, NU_SVC, ONE_CLASS, EPSILON_SVR, NU_SVR
@@ -122,14 +121,14 @@ instance Storable CSvmParameter where
               (#poke struct svm_parameter, shrinking) ptr shrinking_p
               (#poke struct svm_parameter, probability) ptr probability_p
 
+-- |Managed type for struct svm_model.
 data CSvmModel
 
--- TODO cambiare il return type da 
 foreign import ccall unsafe "svm.h svm_train" c_svm_train :: Ptr CSvmProblem -> Ptr CSvmParameter -> IO (Ptr CSvmModel)
                         
 foreign import ccall unsafe "svm.h svm_cross_validation" c_svm_cross_validation:: Ptr CSvmProblem -> Ptr CSvmParameter -> CInt -> Ptr CDouble -> IO () 
 
-foreign import ccall unsafe "svm.h svm_predict" c_svm_predict :: Ptr CSvmModel -> Ptr CSvmNode -> CDouble
+foreign import ccall unsafe "svm.h svm_predict" c_svm_predict :: Ptr CSvmModel -> Ptr CSvmNode -> IO CDouble
 
 foreign import ccall unsafe "svm.h svm_save_model" c_svm_save_model :: CString -> Ptr CSvmModel -> IO CInt
 
@@ -140,3 +139,8 @@ foreign import ccall unsafe "svm.h svm_check_parameter" c_svm_check_parameter ::
 foreign import ccall unsafe "svm.h &svm_destroy_model" c_svm_destroy_model :: FinalizerPtr CSvmModel
 
 foreign import ccall unsafe "svm.h clone_model_support_vectors" c_clone_model_support_vectors :: Ptr CSvmModel -> IO CInt
+
+type CSvmPrintFn = CString -> IO ()
+
+foreign import ccall unsafe "svm.h svm_set_print_string_function" c_svm_set_print_string_function :: FunPtr CSvmPrintFn -> IO ()
+foreign import ccall unsafe "wrapper" createSvmPrintFnPtr :: CSvmPrintFn -> IO (FunPtr CSvmPrintFn)
