@@ -9,7 +9,7 @@ Category:           Datamining, Classification
 Synopsis:           Haskell Bindings for libsvm
 Stability:          provisional
 Build-Type:         Simple
-Cabal-Version:      >= 1.6
+Cabal-Version:      >= 1.8
 Extra-Source-Files: cbits/svm.cpp cbits/svm.h
 
 source-repository head
