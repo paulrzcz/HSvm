@@ -1,7 +1,7 @@
 #ifndef _LIBSVM_H
 #define _LIBSVM_H
 
-#define LIBSVM_VERSION 322
+#define LIBSVM_VERSION 325
 
 #ifdef __cplusplus
 extern "C" {
@@ -100,6 +100,7 @@ void svm_set_print_string_function(void (*print_func)(const char *));
 
 // added by HSvm
 int clone_model_support_vectors(struct svm_model *model);
+
 
 #ifdef __cplusplus
 }
