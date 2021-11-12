@@ -332,12 +332,6 @@ double Kernel::k_function(const svm_node *x, const svm_node *y,
 			return powi(param.gamma*dot(x,y)+param.coef0,param.degree);
 		case RBF:
 		{
-			// printf("x: ");
-			// print_node(x);
-			// printf("y: ");
-			// print_node(y);
-			//
-			// printf("k_function - rbf: ");
 			double sum = 0;
 			while(x->index != -1 && y->index !=-1)
 			{
@@ -374,8 +368,6 @@ double Kernel::k_function(const svm_node *x, const svm_node *y,
 				sum += y->value * y->value;
 				++y;
 			}
-
-			// printf(" sum=%g\n", sum);
 
 			return exp(-param.gamma*sum);
 		}
@@ -2526,13 +2518,10 @@ double svm_predict_values(const svm_model *model, const svm_node *x, double* dec
 	{
 		double *sv_coef = model->sv_coef[0];
 		double sum = 0;
-		for(i=0;i<model->l;i++) {
+		for(i=0;i<model->l;i++)
 			sum += sv_coef[i] * Kernel::k_function(x,model->SV[i],model->param);
-		}
 		sum -= model->rho[0];
 		*dec_values = sum;
-
-		printf("%g\n", sum);
 
 		if(model->param.svm_type == ONE_CLASS)
 			return (sum>0)?1:-1;
@@ -2598,7 +2587,6 @@ double svm_predict_values(const svm_model *model, const svm_node *x, double* dec
 
 double svm_predict(const svm_model *model, const svm_node *x)
 {
-	// print_node(x);
 	int nr_class = model->nr_class;
 	double *dec_values;
 	if(model->param.svm_type == ONE_CLASS ||
@@ -2687,10 +2675,10 @@ int svm_save_model(const char *model_file_name, const svm_model *model)
 		fprintf(fp,"degree %d\n", param.degree);
 
 	if(param.kernel_type == POLY || param.kernel_type == RBF || param.kernel_type == SIGMOID)
-		fprintf(fp,"gamma %g\n", param.gamma);
+		fprintf(fp,"gamma %.17g\n", param.gamma);
 
 	if(param.kernel_type == POLY || param.kernel_type == SIGMOID)
-		fprintf(fp,"coef0 %g\n", param.coef0);
+		fprintf(fp,"coef0 %.17g\n", param.coef0);
 
 	int nr_class = model->nr_class;
 	int l = model->l;
@@ -2700,7 +2688,7 @@ int svm_save_model(const char *model_file_name, const svm_model *model)
 	{
 		fprintf(fp, "rho");
 		for(int i=0;i<nr_class*(nr_class-1)/2;i++)
-			fprintf(fp," %g",model->rho[i]);
+			fprintf(fp," %.17g",model->rho[i]);
 		fprintf(fp, "\n");
 	}
 
@@ -2716,14 +2704,14 @@ int svm_save_model(const char *model_file_name, const svm_model *model)
 	{
 		fprintf(fp, "probA");
 		for(int i=0;i<nr_class*(nr_class-1)/2;i++)
-			fprintf(fp," %g",model->probA[i]);
+			fprintf(fp," %.17g",model->probA[i]);
 		fprintf(fp, "\n");
 	}
 	if(model->probB)
 	{
 		fprintf(fp, "probB");
 		for(int i=0;i<nr_class*(nr_class-1)/2;i++)
-			fprintf(fp," %g",model->probB[i]);
+			fprintf(fp," %.17g",model->probB[i]);
 		fprintf(fp, "\n");
 	}
 
@@ -2742,7 +2730,7 @@ int svm_save_model(const char *model_file_name, const svm_model *model)
 	for(int i=0;i<l;i++)
 	{
 		for(int j=0;j<nr_class-1;j++)
-			fprintf(fp, "%.16g ",sv_coef[j][i]);
+			fprintf(fp, "%.17g ",sv_coef[j][i]);
 
 		const svm_node *p = SV[i];
 
@@ -2761,7 +2749,7 @@ int svm_save_model(const char *model_file_name, const svm_model *model)
 	free(old_locale);
 
 	if (ferror(fp) != 0 || fclose(fp) != 0) return -1;
-		else return 0;
+	else return 0;
 }
 
 static char *line = NULL;
@@ -3097,10 +3085,11 @@ const char *svm_check_parameter(const svm_problem *prob, const svm_parameter *pa
 	   kernel_type != PRECOMPUTED)
 		return "unknown kernel type";
 
-	if(param->gamma < 0)
+	if((kernel_type == POLY || kernel_type == RBF || kernel_type == SIGMOID) &&
+	   param->gamma < 0)
 		return "gamma < 0";
 
-	if(param->degree < 0)
+	if(kernel_type == POLY && param->degree < 0)
 		return "degree of polynomial kernel < 0";
 
 	// cache_size,eps,C,nu,p,shrinking
