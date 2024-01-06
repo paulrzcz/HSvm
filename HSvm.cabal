@@ -12,10 +12,13 @@ Description:        The library embeds libsvm and provides a type-safe interface
 Stability:          provisional
 Build-Type:         Simple
 Extra-Source-Files: cbits/svm.cpp cbits/svm.h
+Extra-Doc-Files:    changelog.md
+Tested-With:        GHC == 9.4.8, GHC == 9.6.3
 
 source-repository head
   type:             git
   location:         https://github.com/paulrzcz/HSvm.git
+  tag:              1.0.3.32
 
 Library
   Default-Language: Haskell2010

@@ -1,8 +1,9 @@
 ### 1.0.3.32
-* LibSVM version 3.32
+* (LibSVM version 3.32)[https://www.csie.ntu.edu.tw/~cjlin/libsvm/]
 * Decided to promote this version to major one after so many years of alpha releases.
 * Upgraded to Cabal 3.0.
 * Removed stack support.
+* Tested on two versions of GHC compiler.
 * Finally we've got a changelog here!
 
 ### 0.1.2.3.32
