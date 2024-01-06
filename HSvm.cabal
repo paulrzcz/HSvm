@@ -8,6 +8,7 @@ License-File:       LICENSE
 Author:             Paolo Losi <paolo.losi@gmail.com>
 Category:           Datamining, Classification
 Synopsis:           Haskell Bindings for libsvm
+Description:        The library embeds libsvm and provides a type-safe interface into SVM models.
 Stability:          provisional
 Build-Type:         Simple
 Extra-Source-Files: cbits/svm.cpp cbits/svm.h
@@ -17,8 +18,9 @@ source-repository head
   location:         https://github.com/paulrzcz/HSvm.git
 
 Library
+  Default-Language: Haskell2010
   Build-Depends:    base >= 4 && < 5
-                  , containers
+                  , containers >= 0.6.7 && < 0.7
   Exposed-modules:  Data.SVM
                   , Data.SVM.Raw
   Includes:         svm.h
