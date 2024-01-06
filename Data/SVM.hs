@@ -20,7 +20,7 @@ module Data.SVM
   ) where
 
 import           Control.Exception
-import           Control.Monad         (liftM, when)
+import           Control.Monad         (when)
 import           Data.IntMap           (IntMap, toList)
 import qualified Data.IntMap           as M
 import           Data.SVM.Raw          (CSvmModel, CSvmNode (..), CSvmParameter,
@@ -122,7 +122,7 @@ withCSvmNodeArray v = withArray0 endMarker (convertToNodeArray v)
 newCSvmProblem :: Problem -> IO (Ptr CSvmProblem)
 newCSvmProblem lvs = do nodePtrList <- mapM (newCSvmNodeArray . snd) lvs
                         nodePtrPtr  <- newArray nodePtrList
-                        labelPtr <- newArray . map realToFrac $ map fst lvs
+                        labelPtr <- newArray (map (realToFrac . fst) lvs)
                         let z = fromIntegral . length $ lvs
                         ptr <- malloc
                         poke ptr $ CSvmProblem z labelPtr nodePtrPtr
@@ -185,12 +185,12 @@ crossValidate' :: ExtraParam
 crossValidate' extra algo kern prob nFold =
     withProblem prob $ \probPtr ->
     withParam extra algo kern $ \paramPtr -> do
-        probLen <- (fromIntegral . R.l) `liftM` peek probPtr
+        probLen <- (fromIntegral . R.l) `fmap` peek probPtr
         allocaArray probLen $ \targetPtr -> do -- (length prob is inefficient)
             checkParam probPtr paramPtr
             let c_nFold = fromIntegral nFold
             c_svm_cross_validation probPtr paramPtr c_nFold targetPtr
-            map realToFrac `liftM` peekArray probLen targetPtr
+            map realToFrac `fmap` peekArray probLen targetPtr
 
 -- |Stratified cross validation
 crossValidate :: Algorithm -> KernelType -> Problem -> Int -> IO [Double]
@@ -210,15 +210,14 @@ saveModel (Model modelForeignPtr) path =
 loadModel :: FilePath -> IO Model
 loadModel path = do
     modelPtr <- c_svm_load_model =<< newCString path
-    Model `liftM` newForeignPtr c_svm_destroy_model modelPtr
+    Model `fmap` newForeignPtr c_svm_destroy_model modelPtr
 
 -- |Predict a value for 'Vector' by using 'Model'
 predict :: Model -> Vector -> IO Double
 predict (Model modelForeignPtr) vector = action
     where action :: IO Double
           action = withForeignPtr modelForeignPtr $ \modelPtr ->
-                   withCSvmNodeArray vector $ \vectorPtr ->
-                        realToFrac <$> c_svm_predict modelPtr vectorPtr
+                   withCSvmNodeArray vector (fmap realToFrac . c_svm_predict modelPtr)
 
 -- |Wrapper to change the libsvm output reporting function.
 --
