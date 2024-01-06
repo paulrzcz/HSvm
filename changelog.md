@@ -1,5 +1,5 @@
 ### 1.0.3.32
-* (LibSVM version 3.32)[https://www.csie.ntu.edu.tw/~cjlin/libsvm/]
+* [LibSVM version 3.32](https://www.csie.ntu.edu.tw/~cjlin/libsvm/)
 * Decided to promote this version to major one after so many years of alpha releases.
 * Upgraded to Cabal 3.0.
 * Removed stack support.
