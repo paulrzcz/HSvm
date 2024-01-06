@@ -1,7 +1,7 @@
 #ifndef _LIBSVM_H
 #define _LIBSVM_H
 
-#define LIBSVM_VERSION 325
+#define LIBSVM_VERSION 332
 
 #ifdef __cplusplus
 extern "C" {
@@ -59,6 +59,7 @@ struct svm_model
 	double *rho;		/* constants in decision functions (rho[k*(k-1)/2]) */
 	double *probA;		/* pariwise probability information */
 	double *probB;
+	double *prob_density_marks;	/* probability information for ONE_CLASS */
 	int *sv_indices;        /* sv_indices[0,...,nSV-1] are values in [1,...,num_traning_data] to indicate SVs in the training set */
 
 	/* for classification only */
@@ -88,7 +89,6 @@ double svm_predict_values(const struct svm_model *model, const struct svm_node *
 double svm_predict(const struct svm_model *model, const struct svm_node *x);
 double svm_predict_probability(const struct svm_model *model, const struct svm_node *x, double* prob_estimates);
 
-void svm_destroy_model(struct svm_model *model_ptr);
 void svm_free_model_content(struct svm_model *model_ptr);
 void svm_free_and_destroy_model(struct svm_model **model_ptr_ptr);
 void svm_destroy_param(struct svm_parameter *param);
@@ -99,6 +99,7 @@ int svm_check_probability_model(const struct svm_model *model);
 void svm_set_print_string_function(void (*print_func)(const char *));
 
 // added by HSvm
+void svm_destroy_model(struct svm_model *model_ptr);
 int clone_model_support_vectors(struct svm_model *model);
 
 
