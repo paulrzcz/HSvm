@@ -23,7 +23,7 @@ source-repository head
 Library
   Default-Language: Haskell2010
   Build-Depends:    base >= 4 && < 5
-                  , containers >= 0.6.7 && < 0.7
+                  , containers >= 0.6.7 && < 0.8
   Exposed-modules:  Data.SVM
                   , Data.SVM.Raw
   Includes:         svm.h
