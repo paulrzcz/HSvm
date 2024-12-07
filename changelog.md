@@ -1,3 +1,7 @@
+### 1.0.3.35
+* [LibSVM version 3.35](https://www.csie.ntu.edu.tw/~cjlin/libsvm/)
+* GHC 9.10's containers 0.7 are supported.
+
 ### 1.0.3.32
 * [LibSVM version 3.32](https://www.csie.ntu.edu.tw/~cjlin/libsvm/)
 * Decided to promote this version to major one after so many years of alpha releases.

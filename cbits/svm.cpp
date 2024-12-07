@@ -54,7 +54,7 @@ static void info(const char *fmt,...)
 	char buf[BUFSIZ];
 	va_list ap;
 	va_start(ap,fmt);
-	vsprintf(buf,fmt,ap);
+	vsnprintf(buf,BUFSIZ,fmt,ap);
 	va_end(ap);
 	(*svm_print_string)(buf);
 }
@@ -71,7 +71,7 @@ static void info(const char *fmt,...) {}
 class Cache
 {
 public:
-	Cache(int l,long int size);
+	Cache(int l,size_t size);
 	~Cache();
 
 	// request data [0,len)
@@ -81,7 +81,7 @@ public:
 	void swap_index(int i, int j);
 private:
 	int l;
-	long int size;
+	size_t size;
 	struct head_t
 	{
 		head_t *prev, *next;	// a circular list
@@ -95,12 +95,12 @@ private:
 	void lru_insert(head_t *h);
 };
 
-Cache::Cache(int l_,long int size_):l(l_),size(size_)
+Cache::Cache(int l_,size_t size_):l(l_),size(size_)
 {
 	head = (head_t *)calloc(l,sizeof(head_t));	// initialized to 0
 	size /= sizeof(Qfloat);
-	size -= l * sizeof(head_t) / sizeof(Qfloat);
-	size = max(size, 2 * (long int) l);	// cache must be large enough for two columns
+	size_t header_size = l * sizeof(head_t) / sizeof(Qfloat);
+	size = max(size, 2 * (size_t) l + header_size) - header_size;  // cache must be large enough for two columns
 	lru_head.next = lru_head.prev = &lru_head;
 }
 
@@ -136,7 +136,7 @@ int Cache::get_data(const int index, Qfloat **data, int len)
 	if(more > 0)
 	{
 		// free old space
-		while(size < more)
+		while(size < (size_t)more)
 		{
 			head_t *old = lru_head.next;
 			lru_delete(old);
@@ -148,7 +148,7 @@ int Cache::get_data(const int index, Qfloat **data, int len)
 
 		// allocate new space
 		h->data = (Qfloat *)realloc(h->data,sizeof(Qfloat)*len);
-		size -= more;
+		size -= more;  // previous while loop guarantees size >= more and subtraction of size_t variable will not underflow
 		swap(h->len,len);
 	}
 
@@ -315,14 +315,6 @@ double Kernel::dot(const svm_node *px, const svm_node *py)
 		}
 	}
 	return sum;
-}
-
-void print_node(const svm_node *p) {
-	while(p->index != -1) {
-				printf("%d:%.8g ",p->index,p->value);
-				p++;
-	}
-	printf("\n");
 }
 
 double Kernel::k_function(const svm_node *x, const svm_node *y,
@@ -1282,7 +1274,7 @@ public:
 	:Kernel(prob.l, prob.x, param)
 	{
 		clone(y,y_,prob.l);
-		cache = new Cache(prob.l,(long int)(param.cache_size*(1<<20)));
+		cache = new Cache(prob.l,(size_t)(param.cache_size*(1<<20)));
 		QD = new double[prob.l];
 		for(int i=0;i<prob.l;i++)
 			QD[i] = (this->*kernel_function)(i,i);
@@ -1334,7 +1326,7 @@ public:
 	ONE_CLASS_Q(const svm_problem& prob, const svm_parameter& param)
 	:Kernel(prob.l, prob.x, param)
 	{
-		cache = new Cache(prob.l,(long int)(param.cache_size*(1<<20)));
+		cache = new Cache(prob.l,(size_t)(param.cache_size*(1<<20)));
 		QD = new double[prob.l];
 		for(int i=0;i<prob.l;i++)
 			QD[i] = (this->*kernel_function)(i,i);
@@ -1381,7 +1373,7 @@ public:
 	:Kernel(prob.l, prob.x, param)
 	{
 		l = prob.l;
-		cache = new Cache(l,(long int)(param.cache_size*(1<<20)));
+		cache = new Cache(l,(size_t)(param.cache_size*(1<<20)));
 		QD = new double[2*l];
 		sign = new schar[2*l];
 		index = new int[2*l];
@@ -3167,15 +3159,6 @@ void svm_free_model_content(svm_model* model_ptr)
 	model_ptr->nSV = NULL;
 }
 
-void svm_destroy_model(struct svm_model *model_ptr)
-{
-	if(model_ptr != NULL)
-	{
-		svm_free_model_content(model_ptr);
-		free(model_ptr);
-	}
-}
-
 void svm_free_and_destroy_model(svm_model** model_ptr_ptr)
 {
 	if(model_ptr_ptr != NULL && *model_ptr_ptr != NULL)
@@ -3328,6 +3311,17 @@ void svm_set_print_string_function(void (*print_func)(const char *))
 		svm_print_string = print_func;
 }
 
+// added by HSvm
+
+void svm_destroy_model(struct svm_model *model_ptr)
+{
+	if(model_ptr != NULL)
+	{
+		svm_free_model_content(model_ptr);
+		free(model_ptr);
+	}
+}
+
 int clone_model_support_vectors(svm_model* model)
 {
     svm_node **new_sv_array;
@@ -3364,4 +3358,12 @@ int clone_model_support_vectors(svm_model* model)
     free(model->SV);
     model->SV = new_sv_array;
     return 0;
+}
+
+void print_node(const svm_node *p) {
+	while(p->index != -1) {
+				printf("%d:%.8g ",p->index,p->value);
+				p++;
+	}
+	printf("\n");
 }
