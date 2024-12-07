@@ -18,7 +18,7 @@ Tested-With:        GHC == 9.4.8, GHC == 9.6.3
 source-repository head
   type:             git
   location:         https://github.com/paulrzcz/HSvm.git
-  tag:              1.0.3.32
+  tag:              1.0.3.35
 
 Library
   Default-Language: Haskell2010
